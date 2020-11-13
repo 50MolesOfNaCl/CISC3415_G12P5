@@ -16,6 +16,7 @@
 #include <iostream>
 #include <fstream>
 #include <libplayerc++/playerc++.h>
+#include <queue>
 using namespace PlayerCc;
 
 
@@ -32,7 +33,11 @@ int  readPlanLength(void);
 void readPlan(double*, int);
 void printPlan(double*, int);
 void writePlan(double*, int);
+void getNextWaypoint();
+double x, y;				// Hold our current waypoint
+std::queue<double> myqueue; // Hold all of our waypoint
 
+//void getNextWaypoint(myqueue);
 /**
  * main()
  *
@@ -40,7 +45,6 @@ void writePlan(double*, int);
 
 int main(int argc, char* argv[])
 {
-
 	// Variables
 	int counter = 0;
 	double speed;            // How fast do we want the robot to go forwards?
@@ -63,6 +67,7 @@ int main(int argc, char* argv[])
 	// Allow the program to take charge of the motors (take care now)
 	pp.SetMotorEnable(true);
 
+	/**
 	// Plan handling
 	// 
 	// A plan is an integer, n, followed by n doubles (n has to be
@@ -71,12 +76,13 @@ int main(int argc, char* argv[])
 	// doubles give the first location that the robot should move to, and
 	// so on. The last pair of doubles give the point at which the robot
 	// should stop.
+	**/
 	pLength = readPlanLength(); // Find out how long the plan is from plan.txt
 	plan = new double[pLength]; // Create enough space to store the plan
 	readPlan(plan, pLength);    // Read the plan from the file plan.txt.
-	printPlan(plan, pLength);    // Print the plan on the screen
+	printPlan(plan, pLength);   // Print the plan on the screen
 	writePlan(plan, pLength);   // Write the plan to the file plan-out.txt
-
+	getNextWaypoint();			// Initialize X and Y
 
 	// Main control loop
 	while (true)
@@ -92,7 +98,7 @@ int main(int argc, char* argv[])
 		if (counter > 2) {
 			printLaserData(sp);
 		}
-
+		std::cout << "Current targets X: " << myqueue.front() << " Y: " << y << std::endl;
 		// Print data on the robot to the terminal --- turned off for now.
 		// printRobotData(bp, pose);
 
@@ -105,6 +111,12 @@ int main(int argc, char* argv[])
 		else {
 			speed = .1;
 			turnrate = 0;
+
+			//  If waypoint reached and not the last one, get the next one
+			if ((pose.px == x && pose.py == y) && myqueue.empty())
+			{
+				getNextWaypoint();
+			}
 		}
 
 		// What are we doing?
@@ -247,6 +259,7 @@ void readPlan(double* plan, int length)
 	planFile >> skip;
 	for (int i = 0; i < length; i++) {
 		planFile >> plan[i];
+		myqueue.push(plan[i]); // Here we fill our queue
 	}
 
 	planFile.close();
@@ -298,3 +311,26 @@ void writePlan(double* plan, int length)
 	planFile.close();
 
 } // End of writePlan
+
+/**
+* getNextWaypoint
+* 
+* Set double x and double y to our next waypoint while popping them off the queue.
+* Does nothing if queue is empty.
+* Should only be called once we cleared our current waypoint OR at the start of the program before main loop.
+**/
+
+void getNextWaypoint()
+{
+	if (!myqueue.empty())
+	{
+		x = myqueue.front();
+		myqueue.pop();
+		y = myqueue.front();
+		myqueue.pop();
+		std::cout << "SETTING: X: " << x << " Y: " << y << std::endl;
+	}
+	else {
+		std::cout << "QUEUE IS EMPTY" << std::endl;
+	}
+}
