@@ -34,6 +34,7 @@ void readPlan(double*, int);
 void printPlan(double*, int);
 void writePlan(double*, int);
 void getNextWaypoint();
+double truancate(double num);
 double x, y;				// Hold our current waypoint
 std::queue<double> myqueue; // Hold all of our waypoint
 
@@ -111,12 +112,6 @@ int main(int argc, char* argv[])
 		else {
 			speed = .1;
 			turnrate = 0;
-
-			//  If waypoint reached and not the last one, get the next one
-			if ((pose.px == x && pose.py == y) && myqueue.empty())
-			{
-				getNextWaypoint();
-			}
 		}
 
 		// What are we doing?
@@ -125,6 +120,13 @@ int main(int argc, char* argv[])
 
 		// Send the commands to the robot
 		pp.SetSpeed(speed, turnrate);
+
+		//  If waypoint reached and not the last one, get the next one
+		//  It makes sense to check after we move.
+		if ( (truancate(pose.px) == truancate(x) && truancate(pose.py) == truancate(y)) && !myqueue.empty())
+		{
+			getNextWaypoint();
+		}
 		// Count how many times we do this
 		counter++;
 	}
@@ -206,8 +208,8 @@ void printRobotData(BumperProxy& bp, player_pose2d_t pose)
 
 	// Print out where we are
 	std::cout << "We are at" << std::endl;
-	std::cout << "X: " << pose.px << std::endl;
-	std::cout << "Y: " << pose.py << std::endl;
+	std::cout << "Absolute X: " << pose.px << "| Trunc X: " << truancate(pose.px) << std::endl;
+	std::cout << "Absolute Y: " << pose.py << "| Trunc Y: " << truancate(pose.py) << std::endl;
 	std::cout << "A: " << pose.pa << std::endl;
 
 
@@ -333,4 +335,14 @@ void getNextWaypoint()
 	else {
 		std::cout << "QUEUE IS EMPTY" << std::endl;
 	}
+}
+
+/**
+* truancate
+* 
+* takes double and returns it truancated to some decimal places.
+**/
+double truancate(double num)
+{
+	return (int)(num * 10) / 10.0;
 }
