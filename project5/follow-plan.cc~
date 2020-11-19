@@ -37,6 +37,7 @@ bool navigate(BumperProxy& bp, LaserProxy& sp, double x, double y);
 double getTan(double xPos, double yPos, double xTarget, double yTarget);
 float getDistance (double xPos, double yPos, double xTarget, double yTarget);
 
+
 int  readPlanLength(void);
 void readPlan(double*, int);
 void printPlan(double*, int);
@@ -45,7 +46,6 @@ void getNextWaypoint();
 double truancate(double num);
 double x, y;				// Hold our current waypoint
 std::queue<double> myqueue; // Hold all of our waypoint
-
 double prevX;
 double prevY;
 
@@ -80,16 +80,7 @@ double prevY;
 
 int main(int argc, char* argv[])
 {
-	// Variables
-	int counter = 0;
-	double speed;            // How fast do we want the robot to go forwards?
-	double turnrate;         // How fast do we want the robot to turn?
-	player_pose2d_t  pose;   // For handling localization data
-
-	// The set of coordinates that makes up the plan
-
-	int pLength;
-	double* plan;
+	
 
 	// Set up proxies. These are the names we will use to connect to 
 	// the interface to the robot.
@@ -125,7 +116,6 @@ int main(int argc, char* argv[])
 		// Update information from the robot.
 		robot.Read();
 		// Read new information about position
-		pose = readPosition(lp);
 		pose = readPosition(lp, counter);
 		// Print data on the robot to the terminal
 		printRobotData(bp, pose);
@@ -134,22 +124,6 @@ int main(int argc, char* argv[])
 		if (counter > 2) {
 			printLaserData(sp);
 		}
-
-		std::cout << "Current targets X: " << myqueue.front() << " Y: " << y << std::endl;
-		// Print data on the robot to the terminal --- turned off for now.
-		// printRobotData(bp, pose);
-
-		// If either bumper is pressed, stop. Otherwise just go forwards
-
-		if (bp[0] || bp[1]) {
-			speed = 0;
-			turnrate = 0;
-		}
-		else {
-			speed = .1;
-			turnrate = 0;
-		}
-
 		std::cout << "Current targets X: " << x << " Y: " << y << std::endl;
 		// Print data on the robot to the terminal
 		 printRobotData(bp, pose);
@@ -193,19 +167,6 @@ player_pose2d_t readPosition(LocalizeProxy& lp, int counter)
 {
 
 	player_localize_hypoth_t hypothesis;
-	player_pose2d_t          pose;
-	uint32_t                 hCount;
-
-	// Need some messing around to avoid a crash when the proxy is
-	// starting up.
-
-	hCount = lp.GetHypothCount();
-
-	if (hCount > 0) {
-		hypothesis = lp.GetHypoth(0);
-		pose = hypothesis.mean;
-	}
-
 	player_pose2d_t          tempPose;
 	uint32_t                 hCount;
 
@@ -217,30 +178,14 @@ player_pose2d_t readPosition(LocalizeProxy& lp, int counter)
 		pose = hypothesis.mean;
 	}
 	
+
 	return pose;
 } // End of readPosition()
 
 
 void printLaserData(LaserProxy& sp)
 {
-	double maxRange, minLeft, minRight, range, bearing;
-	int points;
 
-	maxRange = sp.GetMaxRange();
-	minLeft = sp.MinLeft();
-	minRight = sp.MinRight();
-	range = sp.GetRange(5);
-	bearing = sp.GetBearing(5);
-	points = sp.GetCount();
-
-	//Uncomment this to print out useful laser data
-	//std::cout << "Laser says..." << std::endl;
-	//std::cout << "Maximum distance I can see: " << maxRange << std::endl;
-	//std::cout << "Number of readings I return: " << points << std::endl;
-	//std::cout << "Closest thing on left: " << minLeft << std::endl;
-	//std::cout << "Closest thing on right: " << minRight << std::endl;
-	//std::cout << "Range of a single point: " << range << std::endl;
-	//std::cout << "Bearing of a single point: " << bearing << std::endl;
 	double maxRange, minLeft, minRight, range, bearing, middleScanLine, leftRange, rightRange;
   int points;
 
@@ -265,6 +210,7 @@ void printLaserData(LaserProxy& sp)
   std::cout << "Bearing of a single point: " << bearing << std::endl;
   std::cout << "Range of Left Most Point: " << leftRange << std::endl;
   std::cout << "Range of Right Most Point: " << rightRange << std::endl;
+
 
 	return;
 } // End of printLaserData()
@@ -573,7 +519,6 @@ double truancate(double num)
 {
 	return (int)(num * 10) / 10.0;
 }
-}
 
 double getTan (double xPos, double yPos, double xTarget, double yTarget){
 	return tan ((yTarget - yPos) /(xTarget -xPos));
@@ -583,3 +528,5 @@ float getDistance (double xPos, double yPos, double xTarget, double yTarget) {
 	return sqrt (pow(xTarget-xPos, 2) + 
 		     pow(yTarget-yPos, 2) );
 }
+
+
