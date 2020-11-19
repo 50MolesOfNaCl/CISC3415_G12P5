@@ -2,9 +2,9 @@
  * follow-plan.cc
  *
  * Group 12: Jennie Kang, Edmund Lam, Jamila Toaha
- * 
+ *
  * Project 5
- * 
+ *
  * Sample code for a robot that has two front bumpers and a laser, and
  * which is provided with localization data.
  *
@@ -35,7 +35,8 @@ void printLaserData(LaserProxy& sp);
 void localize(BumperProxy& bp, LaserProxy& sp);
 bool navigate(BumperProxy& bp, LaserProxy& sp, double x, double y);
 double getTan(double xPos, double yPos, double xTarget, double yTarget);
-float getDistance (double xPos, double yPos, double xTarget, double yTarget);
+float getDistance(double xPos, double yPos, double xTarget, double yTarget);
+
 
 int  readPlanLength(void);
 void readPlan(double*, int);
@@ -45,32 +46,31 @@ void getNextWaypoint();
 double truancate(double num);
 double x, y;				// Hold our current waypoint
 std::queue<double> myqueue; // Hold all of our waypoint
-
 double prevX;
 double prevY;
 
 // Variables
-	int counter = 0;
-	double speed;            // How fast do we want the robot to go forwards?
-	double turnrate;         // How fast do we want the robot to turn?
-	player_pose2d_t  pose;   // For handling localization data
-        player_laser_data laser; // For handling laser data
-        int setFullRotationCounter = 0;
+int counter = 0;
+double speed;            // How fast do we want the robot to go forwards?
+double turnrate;         // How fast do we want the robot to turn?
+player_pose2d_t  pose;   // For handling localization data
+player_laser_data laser; // For handling laser data
+int setFullRotationCounter = 0;
 
-	// Navigation
- 	 float distance; 	   // How far is robot from the target?
-         double targetTan;  	   // Save the tan result for our target
+// Navigation
+float distance; 	   // How far is robot from the target?
+double targetTan;  	   // Save the tan result for our target
 
 
- 	 // === State Variables
-        bool localizeState = true ; // We first want to localize robot before navigating
-  	bool navigateState = false; // Once we localize, then we want to navigate
-	bool end = false; 
+// === State Variables
+bool localizeState = true; // We first want to localize robot before navigating
+bool navigateState = false; // Once we localize, then we want to navigate
+bool end = false;
 
-	// The set of coordinates that makes up the plan
+// The set of coordinates that makes up the plan
 
-	int pLength;
-	double* plan;
+int pLength;
+double* plan;
 
 //void getNextWaypoint(myqueue);
 /**
@@ -80,16 +80,7 @@ double prevY;
 
 int main(int argc, char* argv[])
 {
-	// Variables
-	int counter = 0;
-	double speed;            // How fast do we want the robot to go forwards?
-	double turnrate;         // How fast do we want the robot to turn?
-	player_pose2d_t  pose;   // For handling localization data
 
-	// The set of coordinates that makes up the plan
-
-	int pLength;
-	double* plan;
 
 	// Set up proxies. These are the names we will use to connect to 
 	// the interface to the robot.
@@ -104,7 +95,7 @@ int main(int argc, char* argv[])
 
 	/**
 	// Plan handling
-	// 
+	//
 	// A plan is an integer, n, followed by n doubles (n has to be
 	// even). The first and second doubles are the initial x and y
 	// (respectively) coordinates of the robot, the third and fourth
@@ -125,7 +116,6 @@ int main(int argc, char* argv[])
 		// Update information from the robot.
 		robot.Read();
 		// Read new information about position
-		pose = readPosition(lp);
 		pose = readPosition(lp, counter);
 		// Print data on the robot to the terminal
 		printRobotData(bp, pose);
@@ -134,31 +124,15 @@ int main(int argc, char* argv[])
 		if (counter > 2) {
 			printLaserData(sp);
 		}
-
-		std::cout << "Current targets X: " << myqueue.front() << " Y: " << y << std::endl;
-		// Print data on the robot to the terminal --- turned off for now.
-		// printRobotData(bp, pose);
-
-		// If either bumper is pressed, stop. Otherwise just go forwards
-
-		if (bp[0] || bp[1]) {
-			speed = 0;
-			turnrate = 0;
-		}
-		else {
-			speed = .1;
-			turnrate = 0;
-		}
-
 		std::cout << "Current targets X: " << x << " Y: " << y << std::endl;
 		// Print data on the robot to the terminal
-		 printRobotData(bp, pose);
+		printRobotData(bp, pose);
 
 		// Robot first goes through localization
-                if(localizeState) localize(bp, sp); 
+		if (localizeState) localize(bp, sp);
 
-               // Once localizes, it navigates to destination
-	        if (navigateState) navigate(bp, sp, x, y);
+		// Once localizes, it navigates to destination
+		if (navigateState) navigate(bp, sp, x, y);
 
 		// What are we doing?
 		std::cout << "Speed: " << speed << std::endl;
@@ -168,10 +142,26 @@ int main(int argc, char* argv[])
 		pp.SetSpeed(speed, turnrate);
 
 		//  If waypoint reached and not the last one, get the next one
-		//  It makes sense to check after we move.
-		if ( (truancate(pose.px) == truancate(x) && truancate(pose.py) == truancate(y)) && !myqueue.empty())
+		if (truancate(pose.px) == truancate(x) && truancate(pose.py) == truancate(y))
 		{
-			getNextWaypoint();
+			if (!myqueue.empty()) {
+				getNextWaypoint();
+			}
+			else {
+				// WE ARE DONE
+			}
+		}
+		// In event of perpendicular alignment to waypoint
+		// If bot lines up horizontally to waypoint
+		else if (truancate(pose.px) == truancate(x) && truancate(pose.py) != truancate(y)) {
+
+		}
+		// if bot lines up on the vertically to waypoint
+		else if (truancate(pose.px) != truancate(x) && truancate(pose.py) == truancate(y)) {
+
+		}
+		else {
+
 		}
 		// Count how many times we do this
 		counter++;
@@ -193,12 +183,10 @@ player_pose2d_t readPosition(LocalizeProxy& lp, int counter)
 {
 
 	player_localize_hypoth_t hypothesis;
-	player_pose2d_t          pose;
+	player_pose2d_t          tempPose;
 	uint32_t                 hCount;
 
-	// Need some messing around to avoid a crash when the proxy is
-	// starting up.
-
+	//need some messing around to avoid a crash when the proxy is starting up
 	hCount = lp.GetHypothCount();
 
 	if (hCount > 0) {
@@ -206,24 +194,15 @@ player_pose2d_t readPosition(LocalizeProxy& lp, int counter)
 		pose = hypothesis.mean;
 	}
 
-	player_pose2d_t          tempPose;
-	uint32_t                 hCount;
 
-	//need some messing around to avoid a crash when the proxy is starting up
-	hCount = lp.GetHypothCount();
-
-	if(hCount > 0) {
-		hypothesis = lp.GetHypoth(0);
-		pose = hypothesis.mean;
-	}
-	
 	return pose;
 } // End of readPosition()
 
 
 void printLaserData(LaserProxy& sp)
 {
-	double maxRange, minLeft, minRight, range, bearing;
+
+	double maxRange, minLeft, minRight, range, bearing, middleScanLine, leftRange, rightRange;
 	int points;
 
 	maxRange = sp.GetMaxRange();
@@ -232,39 +211,22 @@ void printLaserData(LaserProxy& sp)
 	range = sp.GetRange(5);
 	bearing = sp.GetBearing(5);
 	points = sp.GetCount();
+	middleScanLine = sp.GetRange(180);
+	leftRange = sp.GetRange(360);  // left most range
+	rightRange = sp.GetRange(0);    // right most range
 
-	//Uncomment this to print out useful laser data
-	//std::cout << "Laser says..." << std::endl;
-	//std::cout << "Maximum distance I can see: " << maxRange << std::endl;
-	//std::cout << "Number of readings I return: " << points << std::endl;
-	//std::cout << "Closest thing on left: " << minLeft << std::endl;
-	//std::cout << "Closest thing on right: " << minRight << std::endl;
-	//std::cout << "Range of a single point: " << range << std::endl;
-	//std::cout << "Bearing of a single point: " << bearing << std::endl;
-	double maxRange, minLeft, minRight, range, bearing, middleScanLine, leftRange, rightRange;
-  int points;
+	//Print out useful laser data
+	std::cout << "Laser says..." << std::endl;
+	std::cout << "Maximum distance I can see: " << maxRange << std::endl;
+	std::cout << "Number of readings I return: " << points << std::endl;
+	std::cout << "Closest thing on left: " << minLeft << std::endl;
+	std::cout << "Closest thing on right: " << minRight << std::endl;
+	std::cout << "Range of a middle scan line: " << middleScanLine << std::endl;
+	std::cout << "Range of a single point: " << range << std::endl;
+	std::cout << "Bearing of a single point: " << bearing << std::endl;
+	std::cout << "Range of Left Most Point: " << leftRange << std::endl;
+	std::cout << "Range of Right Most Point: " << rightRange << std::endl;
 
-  maxRange  = sp.GetMaxRange();
-  minLeft   = sp.MinLeft();
-  minRight  = sp.MinRight();
-  range     = sp.GetRange(5);
-  bearing   = sp.GetBearing(5);
-  points    = sp.GetCount();
-  middleScanLine = sp.GetRange(180);
-  leftRange = sp.GetRange(360);  // left most range
-  rightRange = sp.GetRange(0);    // right most range
-
-  //Print out useful laser data
-  std::cout << "Laser says..." << std::endl;
-  std::cout << "Maximum distance I can see: " << maxRange << std::endl;
-  std::cout << "Number of readings I return: " << points << std::endl;
-  std::cout << "Closest thing on left: " << minLeft << std::endl;
-  std::cout << "Closest thing on right: " << minRight << std::endl;
-  std::cout << "Range of a middle scan line: " << middleScanLine << std::endl;
-  std::cout << "Range of a single point: " << range << std::endl;
-  std::cout << "Bearing of a single point: " << bearing << std::endl;
-  std::cout << "Range of Left Most Point: " << leftRange << std::endl;
-  std::cout << "Range of Right Most Point: " << rightRange << std::endl;
 
 	return;
 } // End of printLaserData()
@@ -299,146 +261,147 @@ void printRobotData(BumperProxy& bp, player_pose2d_t pose)
 
 void localize(BumperProxy& bp, LaserProxy& sp) {
 
-// If either bumper is pressed, stop. Otherwise just go forwards
+	// If either bumper is pressed, stop. Otherwise just go forwards
 
-      if(bp[0] || bp[1]){
-	speed= 0;
-	turnrate= 0;
-      } 
-      else if (counter > 2 && counter < 22) { //give robot 5 seconds to move back
-	speed = -.5;
-	turnrate = 0;
-      } 
-      else if (counter >=22 && counter < 122) { //give robot 10 seconds to turn
-	speed = 0;
-	turnrate = dtor(40);
-
-      } else if (counter >=122 && counter < 144) {
-	speed = .2;
-	turnrate = 0;
-      }
-
-      else {
-	//move forward if not obstacles ahead
-	speed= .2;
-	turnrate = 0; 
-	
-
-	if(counter > 2 && sp.GetRange(180) < 1) {
-	  turnrate = dtor(40);
-	  speed = 0;
+	if (bp[0] || bp[1]) {
+		speed = 0;
+		turnrate = 0;
 	}
-	if(counter > 2 && sp.MinRight() < .6) {
-	  turnrate = dtor(40);
-	  speed = 0;
+	else if (counter > 2 && counter < 22) { //give robot 5 seconds to move back
+		speed = -.5;
+		turnrate = 0;
 	}
-	if(counter > 2 && sp.MinLeft() < .6) {
-	  turnrate = dtor(-40);
-	  speed = 0;
+	else if (counter >= 22 && counter < 122) { //give robot 10 seconds to turn
+		speed = 0;
+		turnrate = dtor(40);
+
+	}
+	else if (counter >= 122 && counter < 144) {
+		speed = .2;
+		turnrate = 0;
 	}
 
-      }
+	else {
+		//move forward if not obstacles ahead
+		speed = .2;
+		turnrate = 0;
 
 
-	if(counter > 160) {
-	 localizeState = false ; // We first want to localize robot before navigating
-	 navigateState = true; 
-  	std::cout << "=========================================================" << std::endl;
-  	std::cout << "Success Localization!" << std::endl;
-  	std::cout << "=========================================================" << std::endl;
-	}     
+		if (counter > 2 && sp.GetRange(180) < 1) {
+			turnrate = dtor(40);
+			speed = 0;
+		}
+		if (counter > 2 && sp.MinRight() < .6) {
+			turnrate = dtor(40);
+			speed = 0;
+		}
+		if (counter > 2 && sp.MinLeft() < .6) {
+			turnrate = dtor(-40);
+			speed = 0;
+		}
+
+	}
+
+
+	if (counter > 160) {
+		localizeState = false; // We first want to localize robot before navigating
+		navigateState = true;
+		std::cout << "=========================================================" << std::endl;
+		std::cout << "Success Localization!" << std::endl;
+		std::cout << "=========================================================" << std::endl;
+	}
 
 
 }
 
 //Once robot localizes it goes towards the destination of waypoint 
-bool navigate (BumperProxy& bp, LaserProxy& sp, double x, double y) {
+bool navigate(BumperProxy& bp, LaserProxy& sp, double x, double y) {
 
 	//we use laser to avoid obstacles
-	if(counter > 2 && sp.GetRange(180) < 1) {
-	  turnrate = dtor(40);
-	  speed = 0;
+	if (counter > 2 && sp.GetRange(180) < 1) {
+		turnrate = dtor(40);
+		speed = 0;
 	}
-	if(counter > 2 && sp.MinRight() < .6) {
-	  turnrate = dtor(40);
-	  speed = 0;
+	if (counter > 2 && sp.MinRight() < .6) {
+		turnrate = dtor(40);
+		speed = 0;
 	}
-	if(counter > 2 && sp.MinLeft() < .6) {
-	  turnrate = dtor(-40);
-	  speed = 0;
+	if (counter > 2 && sp.MinLeft() < .6) {
+		turnrate = dtor(-40);
+		speed = 0;
 	}
 
 	//if the previous x is the same as the current x
- 	if(y == 1.5) {
-	   turnrate = dtor(5);
-	   speed = 0;
-	   if(pose.pa > 1.55) { 
-		turnrate = 0;
-		speed = 0.3;
-	  }
-           //if robot is facing the target positon, go towards it
-	   if((pose.px > x - .2 && pose.px < x + .2) && (pose.py > y - .2 && pose.py < y + .2)) {
-		turnrate = 0;
+	if (y == 1.5) {
+		turnrate = dtor(5);
 		speed = 0;
-	
-        std::cout << "=========================================================" << std::endl;
-  	std::cout << "Success Navigation!" << std::endl;
-  	std::cout << "=========================================================" << std::endl; 
-	pose.px = x;
-	pose.py = y;
-	}
-	}
-	
-      
-	//turn robot counter-clockwise if the robot's current angle is less than the waypoint 
-//getTan 
-       else {
-	distance = getDistance(pose.px, pose.py, x, y);
-         targetTan = getTan(pose.px, pose.py, x, y);
-	if(pose.pa < targetTan ) { 
-
-		turnrate = dtor(15);
-		speed = 0;
-
-	}
-	//turn robot clockwise if the robot's current angle is more than the waypoint
-//getTan 
-	if(pose.pa > targetTan ) {
-
-		turnrate = dtor(-15);
-		speed = 0;
-	
-	}
-	//if robot is facing the target position, go towards it
-	else if(pose.pa > (getTan (pose.px, pose.py, x, y) - .3) && pose.pa < (getTan (pose.px, pose.py, x, y) + .3)) {
-	    speed = 0.3;
-	    turnrate = 0;
-		//robot comes to a stop around waypoint
-		if(x == -2.5 && y == -6) {
-		  if(pose.px == x && pose.py == y) {
-	           turnrate = 0;
-		   speed = 0;
-	           std::cout << "=========================================================" << std::endl;
-  	           std::cout << "Success Navigation!" << std::endl;
-  	           std::cout << "=========================================================" << std::endl;
-	            }
-	          }
-	        else {
-		   if((pose.px > x - .2 && pose.px < x + .2) && (pose.py > y - .2 && pose.py < y + .2)) {
+		if (pose.pa > 1.55) {
+			turnrate = 0;
+			speed = 0.3;
+		}
+		//if robot is facing the target positon, go towards it
+		if ((pose.px > x - .2 && pose.px < x + .2) && (pose.py > y - .2 && pose.py < y + .2)) {
 			turnrate = 0;
 			speed = 0;
-	   		 std::cout << "=========================================================" << std::endl;
-  			std::cout << "Success Navigation!" << std::endl;
-  			std::cout << "=========================================================" << std::endl; 
+
+			std::cout << "=========================================================" << std::endl;
+			std::cout << "Success Navigation!" << std::endl;
+			std::cout << "=========================================================" << std::endl;
 			pose.px = x;
 			pose.py = y;
-			}
-  	
-	        }
+		}
 	}
-	        		
-        } 
-         
+
+
+	//turn robot counter-clockwise if the robot's current angle is less than the waypoint 
+//getTan 
+	else {
+		distance = getDistance(pose.px, pose.py, x, y);
+		targetTan = getTan(pose.px, pose.py, x, y);
+		if (pose.pa < targetTan) {
+
+			turnrate = dtor(15);
+			speed = 0;
+
+		}
+		//turn robot clockwise if the robot's current angle is more than the waypoint
+	//getTan 
+		if (pose.pa > targetTan) {
+
+			turnrate = dtor(-15);
+			speed = 0;
+
+		}
+		//if robot is facing the target position, go towards it
+		else if (pose.pa > (getTan(pose.px, pose.py, x, y) - .3) && pose.pa < (getTan(pose.px, pose.py, x, y) + .3)) {
+			speed = 0.3;
+			turnrate = 0;
+			//robot comes to a stop around waypoint
+			if (x == -2.5 && y == -6) {
+				if (pose.px == x && pose.py == y) {
+					turnrate = 0;
+					speed = 0;
+					std::cout << "=========================================================" << std::endl;
+					std::cout << "Success Navigation!" << std::endl;
+					std::cout << "=========================================================" << std::endl;
+				}
+			}
+			else {
+				if ((pose.px > x - .2 && pose.px < x + .2) && (pose.py > y - .2 && pose.py < y + .2)) {
+					turnrate = 0;
+					speed = 0;
+					std::cout << "=========================================================" << std::endl;
+					std::cout << "Success Navigation!" << std::endl;
+					std::cout << "=========================================================" << std::endl;
+					pose.px = x;
+					pose.py = y;
+				}
+
+			}
+		}
+
+	}
+
 }
 
 
@@ -543,7 +506,7 @@ void writePlan(double* plan, int length)
 
 /**
 * getNextWaypoint
-* 
+*
 * Set double x and double y to our next waypoint while popping them off the queue.
 * Does nothing if queue is empty.
 * Should only be called once we cleared our current waypoint OR at the start of the program before main loop.
@@ -566,20 +529,19 @@ void getNextWaypoint()
 
 /**
 * truancate
-* 
+*
 * takes double and returns it truancated to some decimal places.
 **/
 double truancate(double num)
 {
 	return (int)(num * 10) / 10.0;
 }
+
+double getTan(double xPos, double yPos, double xTarget, double yTarget) {
+	return tan((yTarget - yPos) / (xTarget - xPos));
 }
 
-double getTan (double xPos, double yPos, double xTarget, double yTarget){
-	return tan ((yTarget - yPos) /(xTarget -xPos));
-}
-
-float getDistance (double xPos, double yPos, double xTarget, double yTarget) {
-	return sqrt (pow(xTarget-xPos, 2) + 
-		     pow(yTarget-yPos, 2) );
+float getDistance(double xPos, double yPos, double xTarget, double yTarget) {
+	return sqrt(pow(xTarget - xPos, 2) +
+		pow(yTarget - yPos, 2));
 }
