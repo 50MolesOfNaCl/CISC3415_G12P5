@@ -64,15 +64,16 @@ player_pose2d_t  pose;   // For handling localization data
 player_laser_data laser; // For handling laser data
 int setFullRotationCounter = 0;
 
+
 // Navigation
 float distance; 	   // How far is robot from the target?
 double targetTan;  	   // Save the tan result for our target
 
 
 // === State Variables
-bool localizeState = true; // We first want to localize robot before navigating
-bool navigateState = false; // Once we localize, then we want to navigate
 bool end = false;
+int isStuckTimer = 0;
+
 
 // The set of coordinates that makes up the plan
 
@@ -129,23 +130,58 @@ int main(int argc, char* argv[])
 		// Print information about the laser. Check the counter first to stop
 		// problems on startup
 		
+
+		//=== Checks if robot is stuck (2 cases: 1- bumps into noise or 2- spinning around for 
+		// too long without detecting viable blob. Note: it is not considered stuck if it has arrived). 
+		// If it is stuck will backup, and turn 30 degrees
+
+		if( isStuckTimer > 0 ) {
+		
+		 	//** Robot backs up for 2 seconds while rotating itself, and moves forwards for 4 seconds- 
+			//	takes into account that there's no bumpers on the back, hence only 2 seconds spent backing up
+			// when 4 seconds is up, it sets itself as unstuck, so it can restart scanning for blobs
+			// and continue with rest of while loop
+			if (isStuckTimer++ < 20 ){
+				speed = -.3;
+				turnrate = dtor(30); // make it rotate 60 degrees
+			} else if (isStuckTimer >= 20 && isStuckTimer <60 ){
+		 	 	speed = .3;	
+				turnrate = 0;	
+			} 
+			else {
+				isStuckTimer = 0;  //resets timer
+
+			}
+				
+
+		
+    			std::cout << "isStuck speed" << speed  << std::endl;
+   			//std::cout << "isStuck yaw" << yawRobot  << std::endl;
+  		    	std::cout << "isStuckTimer" << isStuckTimer << ","  << std::endl;
+
+			
+			pp.SetSpeed(speed, turnrate); // need to set this, so robot can skip the rest of this cycle
+
+			// ** do not proceed with the rest of this loop since robot is stuck
+			continue;
+		}
+
+
+		isStuckTimer = 0;
+		turnrate = 0; 
+		speed = 0;
+
+
 		//For testing purposes, prints distance between way points
 		std::cout << "Distance Between Way Points: " << distanceBetweenWayPoints << std::endl;
-		distance = getDistance (pose.px, pose.py, x, y); // calculates distance between current position and next way point.
-
+		distance = getDistance (pose.px, pose.py, x, y); 
 
 		if (counter > 2) {
 			printLaserData(sp);
 		}
 		std::cout << "Current targets X: " << x << " Y: " << y << std::endl;
-		// Print data on the robot to the terminal
-		printRobotData(bp, pose);
 
-		// Robot first goes through localization
-		//if (localizeState) localize(bp, sp);
-
-		// Once localizes, it navigates to destination
-		//if (navigateState) 
+		// It navigates to destination way point
 		navigate(bp, sp, x, y);
 
 		// What are we doing?
@@ -164,6 +200,7 @@ int main(int argc, char* argv[])
 			else {
 				// WE ARE DONE
 				std::cout << "Arrived to Destination. Program terminated." << std::endl;
+				pp.SetSpeed(0, 0);				
 				break;
 			
 			}
@@ -182,6 +219,14 @@ int main(int argc, char* argv[])
 		}
 		// Count how many times we do this
 		counter++;
+
+
+		if(((bp[0] == 1) || (bp[1] == 1)){
+			speed = 0;
+			turnrate = 0;
+			isStuckTimer++;
+
+		}
 	}
 
 } // end of main()
@@ -271,79 +316,27 @@ void printRobotData(BumperProxy& bp, player_pose2d_t pose)
 
 } // End of printRobotData()
 
-// The localize function localizes the robot. First backs up, and moves forward, which seems to trigger a consistent localization success. Once completed changes state of app.
 
-void localize(BumperProxy& bp, LaserProxy& sp) {
-
-	// If either bumper is pressed, stop. Otherwise just go forwards
-
-	if (bp[0] || bp[1]) {
-		speed = 0;
-		turnrate = 0;
-	}
-	else if (counter > 2 && counter < 22) { //give robot 5 seconds to move back
-		speed = -.5;
-		turnrate = 0;
-	}
-	else if (counter >= 22 && counter < 122) { //give robot 10 seconds to turn
-		speed = 0;
-		turnrate = dtor(40);
-
-	}
-	else if (counter >= 122 && counter < 144) {
-		speed = .2;
-		turnrate = 0;
-	}
-
-	else {
-		//move forward if not obstacles ahead
-		speed = .2;
-		turnrate = 0;
-
-
-		if (counter > 2 && sp.GetRange(180) < 1) {
-			turnrate = dtor(40);
-			speed = 0;
-		}
-		if (counter > 2 && sp.MinRight() < .6) {
-			turnrate = dtor(40);
-			speed = 0;
-		}
-		if (counter > 2 && sp.MinLeft() < .6) {
-			turnrate = dtor(-40);
-			speed = 0;
-		}
-
-	}
-
-
-	if (counter > 160) {
-		localizeState = false; // We first want to localize robot before navigating
-		navigateState = true;
-		std::cout << "=========================================================" << std::endl;
-		std::cout << "Success Localization!" << std::endl;
-		std::cout << "=========================================================" << std::endl;
-	}
-
-
-}
-
-//Once robot localizes it goes towards the destination of waypoint 
+//robot moves towards the destination of waypoint 
 bool navigate(BumperProxy& bp, LaserProxy& sp, double x, double y) {
 
+
 	// We use laser to avoid obstacles
-	if (counter > 2 && sp.GetRange(180) < 1) {
+	/* 
+	if (counter > 2 && sp.GetRange(180) < .3) {
 		turnrate = dtor(40);
 		speed = 0;
-	}
-	if (counter > 2 && sp.MinRight() < .6) {
+	} else
+	if (counter > 2 && sp.MinRight() < .3) {
 		turnrate = dtor(40);
 		speed = 0;
-	}
-	if (counter > 2 && sp.MinLeft() < .6) {
+	} else
+	if (counter > 2 && sp.MinLeft() < .3) {
 		turnrate = dtor(-40);
-		speed = 0;
+		//speed = -.5;
 	}
+	*/
+
 
 	// If the previous x is the same as the current x
 	if (y == 1.5) {
@@ -373,7 +366,7 @@ bool navigate(BumperProxy& bp, LaserProxy& sp, double x, double y) {
 		distance = getDistance(pose.px, pose.py, x, y);
 		targetTan = getTan(pose.px, pose.py, x, y);
 		if (pose.pa < targetTan) {
-
+			double degrees =  1 + 30 * (1- pose.pa/(targetTan+.1));
 			turnrate = dtor(15);
 			speed = 0;
 
@@ -381,7 +374,7 @@ bool navigate(BumperProxy& bp, LaserProxy& sp, double x, double y) {
 		//turn robot clockwise if the robot's current angle is more than the waypoint
 	//getTan 
 		if (pose.pa > targetTan) {
-
+			//double degrees =  1 + 30 * (pose.pa/(targetTan+.1));
 			turnrate = dtor(-15);
 			speed = 0;
 
@@ -416,7 +409,9 @@ bool navigate(BumperProxy& bp, LaserProxy& sp, double x, double y) {
 
 	}
 
-}
+
+
+} // end of navigate
 
 
 /**
