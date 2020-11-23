@@ -143,9 +143,9 @@ int main(int argc, char* argv[])
 			// and continue with rest of while loop
 			if (isStuckTimer++ < 20 ){
 				speed = -.3;
-				turnrate = dtor(30); // make it rotate 60 degrees
-			} else if (isStuckTimer >= 20 && isStuckTimer <60 ){
-		 	 	speed = .3;	
+				turnrate = dtor(40); // make it rotate 60 degrees
+			} else if (isStuckTimer >= 20 && isStuckTimer < 80 ){
+		 	 	speed = .5;	
 				turnrate = 0;	
 			} 
 			else {
@@ -170,6 +170,9 @@ int main(int argc, char* argv[])
 		isStuckTimer = 0;
 		turnrate = 0; 
 		speed = 0;
+
+
+
 
 
 		//For testing purposes, prints distance between way points
