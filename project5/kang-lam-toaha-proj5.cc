@@ -6,15 +6,16 @@
  * Project 5
  *
  * Robot follows a plan consisting of waypoints. 
- *	- Waypoints is extracted from the text file using flexible function. 
+ *	- Waypoints are extracted from the text file using flexible function(s). 
  *	- Waypoints are stored in a queue and coordinates are popped off as needed. 
  * Speed between waypoints is adjusted using proportional control. Proportional control
  * is derived using the distance between waypoints (starting waypoints are compared with
  * robot's starting position)
  *
  * When robot detects an obstacle straight ahead, it backs up and makes it's away around
- * the obstacle. We decided to rely on laser because practically it's better that the robot
- * doesn't physically collide into any obstacle.
+ * the obstacle. We decided to firstly rely on the robot's laser sensor because practically 
+ * it's better that the robot doesn't physically collide into any obstacle 
+ * (bumper collision added as backup) .
  *
  * Date: November 2020
  *
@@ -81,7 +82,7 @@ double targetTan;  	   // Save the tan result for our target
 // === State Variables
 bool end = false;
 int isStuckTimer = 0;
-
+bool arrivedToWayPoint = false;
 
 // The set of coordinates that makes up the plan
 
@@ -139,26 +140,25 @@ int main(int argc, char* argv[])
 		// problems on startup
 		
 
-		//=== Checks if robot is stuck (2 cases: 1- bumps into noise or 2- spinning around for 
-		// too long without detecting viable blob. Note: it is not considered stuck if it has arrived). 
-		// If it is stuck will backup, and turn 30 degrees
+		//=== If there is an obstacle ahead, robot will spend 9 seconds trying to make it's way around the obstacle. i.e. The rest of the while loop cycle is not implemented ('continue') and the next cycle is started during these 9 seconds
+		//
 
 		if( isStuckTimer > 0 ) {
 		
-		 	//** Robot backs up for 2 seconds while rotating itself, and moves forwards for 4 seconds- 
-			//	takes into account that there's no bumpers on the back, hence only 2 seconds spent backing up
-			// when 4 seconds is up, it sets itself as unstuck, so it can restart scanning for blobs
+		 	// Robot backs up for 3 seconds while rotating itself, and moves forward with an angle for 6 seconds- 
+			//	takes into account that there's no bumpers on the back, hence only 3 seconds spent backing up
+			// when the 9 seconds is up, it sets itself as unstuck, so it can find it's way to the waypoint.
 			// and continue with rest of while loop
 			if (isStuckTimer++ < 30 ){
 				speed = -.3;
-				turnrate = dtor(35); // make it rotate 60 degrees
+				turnrate = dtor(40); 
 			} else if (isStuckTimer >= 30 && isStuckTimer < 90 ){
 		 	 	speed = .5;	
 				turnrate = dtor(-7);	
 			} 
 			else {
 
-				distanceBetweenWayPoints= getDistance(pose.px, pose.py, x, y); // recalibrate distance once robot ready to move again
+				distanceBetweenWayPoints= getDistance(pose.px, pose.py, x, y); // recalibrate distance once robot ready to retry heading towards waypoint again
 				isStuckTimer = 0;  //resets timer
 
 			}
@@ -171,7 +171,7 @@ int main(int argc, char* argv[])
 			
 			pp.SetSpeed(speed, turnrate); // need to set this, so robot can skip the rest of this cycle
 
-			// ** do not proceed with the rest of this loop since robot is stuck
+			// ** do not proceed with the rest of this loop since robot is spending this time to manueuver around obstacle
 			continue;
 		}
 
@@ -179,8 +179,6 @@ int main(int argc, char* argv[])
 		isStuckTimer = 0;
 		turnrate = 0; 
 		speed = 0;
-
-
 
 
 
@@ -204,10 +202,12 @@ int main(int argc, char* argv[])
 		pp.SetSpeed(speed, turnrate);
 
 		//  If waypoint reached and not the last one, get the next one
-		if (truncate(pose.px) == truncate(x) && truncate(pose.py) == truncate(y))
+		//if (truncate(pose.px) == truncate(x) && truncate(pose.py) == truncate(y))
+		if(arrivedToWayPoint)
 		{
 			if (!myqueue.empty()) {
 				getNextWaypoint();
+				arrivedToWayPoint = false; //reset this to false
 			}
 			else {
 				// WE ARE DONE
@@ -236,7 +236,7 @@ int main(int argc, char* argv[])
 		if(bp[0] == 1 || bp[1] == 1){
 			speed = 0;
 			turnrate = 0;
-			//isStuckTimer++; //decided to rely on laser because practically it's better that the robot doesn't smash into any obstacle, but this will also meet prompts if we uncomment
+			isStuckTimer++; //decided to primarily rely on laser because practically it's better that the robot doesn't smash into any obstacle, but this will also meet prompts in case robot were to bump before
 
 		}
 	}
@@ -360,24 +360,26 @@ void navigate(BumperProxy& bp, LaserProxy& sp, double x, double y) {
 	// If the previous x is the same as the current x
 	// y == 1.5
 	if (previousX == x) {
-		turnrate = dtor(5);
+	//double degrees = 1 + 30 * (pose.pa/targetTan);
+		turnrate = dtor(10);
 		speed = 0;
 		if (pose.pa > 1.55) {
 			turnrate = 0;
 			speed = 0.1 + 0.9 * distance/distanceBetweenWayPoints;
 		}
 		//if robot is facing the target positon, go towards it
-		if ((pose.px > x - .1 && pose.px < x + .15) && (pose.py > y - .15 && pose.py < y + .1)) {
+		if ((pose.px > x - .2 && pose.px < x + .2) && (pose.py > y - .2 && pose.py < y + 3)) {
 			turnrate = 0;
 			speed = 0;
 
 			std::cout << "=========================================================" << std::endl;
 			std::cout << "Success Navigation!" << std::endl;
 			std::cout << "=========================================================" << std::endl;
-			pose.px = x;
-			pose.py = y;
+			//pose.px = x;
+			//pose.py = y;
+			arrivedToWayPoint = true;
 		}
-	}
+	} 
 
 
 	//turn robot counter-clockwise if the robot's current angle is less than the waypoint 
@@ -401,31 +403,27 @@ void navigate(BumperProxy& bp, LaserProxy& sp, double x, double y) {
 		}
 
 		//if robot is facing the target position, go towards it
-		if (pose.pa > (getTan(pose.px, pose.py, x, y) - .15) && pose.pa < (getTan(pose.px, pose.py, x, y) + .15)) {
+		if (pose.pa > (getTan(pose.px, pose.py, x, y) - .1) && pose.pa < (getTan(pose.px, pose.py, x, y) + .1)) {
 			speed = 0.1 + 0.9 * distance/distanceBetweenWayPoints;
 			turnrate = 0;
+
+
 			//robot comes to a stop around waypoint
-			if (x == -2.5 && y == -6) {
-				if (pose.px == x && pose.py == y) {
+
+				if (
+  ((x == -2.5 && y == -6) &&  (pose.px == x && pose.py == y)) ||
+(pose.px > x - .1 && pose.px < x + .1) && (pose.py > y - .1 && pose.py < y + .1)) {
 					turnrate = 0;
 					speed = 0;
 					std::cout << "=========================================================" << std::endl;
 					std::cout << "Success Navigation!" << std::endl;
 					std::cout << "=========================================================" << std::endl;
-				}
-			}
-			else {
-				if ((pose.px > x - .1 && pose.px < x + .1) && (pose.py > y - .1 && pose.py < y + .1)) {
-					turnrate = 0;
-					speed = 0;
-					std::cout << "=========================================================" << std::endl;
-					std::cout << "Success Navigation!" << std::endl;
-					std::cout << "=========================================================" << std::endl;
-					pose.px = x;
-					pose.py = y;
+					//pose.px = x;
+					//pose.py = y;
+					arrivedToWayPoint = true;
 				}
 
-			}
+			//}
 		}
 
 	}
@@ -583,7 +581,7 @@ double truncate(double num)
 * returns angle between current (x,y) coordinate and target (x,y) coordinate
 **/
 double getTan(double xPos, double yPos, double xTarget, double yTarget) {
-	return tan((yTarget - yPos) / (xTarget - xPos));
+	return atan((yTarget - yPos) / (xTarget - xPos));
 }
 
 /**
